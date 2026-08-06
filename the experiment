@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subject File · Morrbark — Containment Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;700;900&family=Spectral:ital,wght@0,400;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ash:#12100e;
+    --gloom:#1b1814;
+    --gloom-2:#221e19;
+    --line:#332c24;
+    --bone:#e8e2d6;
+    --bone-dim:#a89f90;
+    --brass:#b8894b;
+    --ember:#c6482b;
+    --iron:#8a97a0;
+    --good:#7ea86f;
+    --bad:#c6603f;
+    /* live-driven from JS (with visible fallbacks so the page glows even before/without JS) */
+    --state:#b8894b;
+    --state-dark:#5a3a1e;
+    --state-soft:rgba(184,137,75,.55);
+    --glow-top:rgba(198,72,43,.30);
+    --glow-bot:rgba(198,72,43,.14);
+    --shadow:0 10px 30px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1200px 760px at 50% -8%,  var(--glow-top), transparent 58%),
+      radial-gradient(1000px 640px at 50% 112%, var(--glow-bot), transparent 60%),
+      var(--ash);
+    color:var(--bone);
+    font-family:'Spectral', Georgia, serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    padding:18px 14px 60px;
+    position:relative;
+    transition:background .5s ease;
+  }
+
+  /* ---------- Ambient background (behind content) ---------- */
+  .bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+  .bg .dial{
+    position:absolute;top:-150px;left:50%;transform:translateX(-50%);
+    width:min(760px,155vw);height:min(760px,155vw);color:var(--bone);opacity:.10;
+  }
+  .bg .dial.low{top:auto;bottom:-320px;width:min(520px,120vw);height:min(520px,120vw);opacity:.06}
+  .bg .grain{
+    position:absolute;inset:0;opacity:.06;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .bg .vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 36%, transparent 50%, rgba(0,0,0,.62) 100%)}
+  .ember{
+    position:absolute;width:3px;height:3px;border-radius:50%;
+    background:var(--ember);box-shadow:0 0 8px 1px var(--ember);opacity:.2;
+    animation:flicker 7s ease-in-out infinite;
+  }
+  @keyframes flicker{0%,100%{opacity:.12;transform:translateY(0)}50%{opacity:.55;transform:translateY(-12px)}}
+
+  .mono{font-family:'Space Mono', ui-monospace, monospace}
+  .eyebrow{font-family:'Space Mono', monospace;font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--bone-dim)}
+  .wrap{max-width:820px;margin:0 auto;position:relative}
+
+  /* ---------- Dossier header ---------- */
+  .dossier{
+    border:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(34,30,25,.82), rgba(27,24,20,.82));
+    backdrop-filter:blur(2px);
+    border-radius:10px;padding:16px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+  .dossier::before{content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(90deg, transparent 0 6px, rgba(0,0,0,.14) 6px 7px);opacity:.35;pointer-events:none}
+  .filecode{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;position:relative}
+  .title{font-family:'Grenze Gotisch', serif;font-weight:900;font-size:clamp(2.4rem,11vw,4.1rem);
+    line-height:.92;letter-spacing:.02em;margin:.18em 0 .05em;color:var(--bone);text-shadow:0 2px 0 rgba(0,0,0,.4);position:relative}
+  .subline{color:var(--bone-dim);font-style:italic;font-size:.98rem;position:relative}
+
+  /* ---------- Cards ---------- */
+  .card{border:1px solid var(--line);background:rgba(27,24,20,.80);backdrop-filter:blur(2px);
+    border-radius:10px;padding:16px 16px 18px;margin-top:16px;box-shadow:var(--shadow)}
+  .card > h2{font-family:'Grenze Gotisch', serif;font-weight:700;font-size:1.5rem;margin:0 0 2px;letter-spacing:.02em}
+  .card .hint{color:var(--bone-dim);font-size:.9rem;margin:0 0 12px}
+
+  /* ---------- Gauge ---------- */
+  .readout{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .readout .num{font-family:'Space Mono', monospace;font-weight:700;font-size:clamp(3.4rem,17vw,5.4rem);
+    line-height:.8;color:var(--state);text-shadow:0 0 26px var(--state-soft);transition:color .35s ease, text-shadow .35s ease}
+  .readout .num small{font-size:.32em;color:var(--bone-dim);text-shadow:none;letter-spacing:.05em}
+  .readout .tierbox{text-align:right;flex:1;min-width:0}
+  .tiername{font-family:'Grenze Gotisch', serif;font-weight:900;font-size:clamp(1.5rem,7vw,2.3rem);
+    line-height:1;color:var(--state);transition:color .35s ease}
+  .tiertag{color:var(--bone-dim);font-style:italic;font-size:.92rem}
+
+  .track{position:relative;height:20px;border-radius:11px;background:#0d0b09;border:1px solid var(--line);overflow:hidden}
+  .fill{position:absolute;top:0;left:0;bottom:0;width:50%;
+    background:linear-gradient(90deg, var(--state-dark), var(--state));
+    transition:width .35s cubic-bezier(.2,.8,.2,1), background .35s ease}
+  .divider{position:absolute;top:0;bottom:0;width:1px;background:rgba(232,226,214,.16)}
+  .knob{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;transform:translate(-50%,-50%);
+    background:var(--bone);border:3px solid var(--state);
+    box-shadow:0 0 0 2px #0d0b09, 0 0 14px var(--state-soft);transition:left .35s cubic-bezier(.2,.8,.2,1), border-color .35s ease}
+  .bands{display:flex;margin-top:8px;font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--bone-dim)}
+  .bands span{text-align:center;opacity:.75}
+  .b0{width:25%}.b1{width:20%}.b2{width:10%}.b3{width:20%}.b4{width:25%}
+
+  /* ---------- Current effects ---------- */
+  .fx-tag{display:inline-flex;align-items:center;gap:8px;font-family:'Space Mono',monospace;font-size:.72rem;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--state);margin:2px 0 12px}
+  .fx{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+  .fx li{padding:11px 13px;border-radius:8px;border:1px solid var(--line);background:var(--gloom-2);border-left-width:3px}
+  .fx li.up{border-left-color:var(--good)}
+  .fx li.down{border-left-color:var(--bad)}
+  .fx li.mixed{border-left-color:var(--brass)}
+  .fx li.flat{border-left-color:var(--bone-dim)}
+  .fx .row1{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+  .fx b{font-family:'Space Mono',monospace;font-size:.8rem;letter-spacing:.05em;text-transform:uppercase;color:var(--bone)}
+  .fx p{margin:0;font-size:.96rem;color:var(--bone)}
+  .cat{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
+    padding:3px 7px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
+  .cat.combat{color:var(--ember);border-color:color-mix(in srgb,var(--ember) 45%,var(--line))}
+  .cat.downtime{color:var(--brass);border-color:color-mix(in srgb,var(--brass) 45%,var(--line))}
+  .cat.roleplay{color:var(--iron);border-color:color-mix(in srgb,var(--iron) 45%,var(--line))}
+  .cat.flat{color:var(--bone-dim)}
+
+  /* ---------- Adjust ---------- */
+  .dc{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+    border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px;background:var(--gloom-2)}
+  .dc .lbl{font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--bone-dim)}
+  .dc .val{font-family:'Space Mono',monospace;font-weight:700;font-size:1.35rem;color:var(--brass)}
+  .dc small{color:var(--bone-dim);font-size:.8rem;display:block;margin-top:2px}
+
+  .btn-row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  @media(min-width:520px){.btn-row{grid-template-columns:repeat(4,1fr)}}
+  button{font-family:'Space Mono',monospace;font-weight:700;font-size:.82rem;letter-spacing:.04em;color:var(--bone);
+    background:var(--gloom-2);border:1px solid var(--line);border-radius:8px;padding:12px 8px;cursor:pointer;
+    transition:transform .06s ease, border-color .2s ease, background .2s ease, color .2s ease;min-height:46px}
+  button:hover{border-color:var(--brass);color:var(--bone)}
+  button:active{transform:translateY(1px)}
+  button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+  .btn-up{border-color:#3a4d3f}
+  .btn-up:hover{background:rgba(126,168,111,.12);border-color:var(--good)}
+  .btn-down{border-color:#4d3a34}
+  .btn-down:hover{background:rgba(198,96,63,.12);border-color:var(--bad)}
+  .btn-lbl small{display:block;font-weight:400;font-size:.66rem;color:var(--bone-dim);letter-spacing:.02em}
+  .secondary-row{display:flex;gap:8px;margin-top:8px;align-items:stretch;flex-wrap:wrap}
+  .secondary-row button{flex:1;min-width:120px}
+  .btn-trigger{border-color:#4d3a34}
+  .btn-trigger:hover{background:rgba(198,96,63,.12);border-color:var(--bad)}
+  .stepper{display:flex;gap:6px;align-items:center}
+  .stepper button{width:46px;padding:0}
+  .ghost{background:transparent;color:var(--bone-dim);border-color:var(--line)}
+  .ghost:hover{color:var(--bone)}
+
+  /* ---------- Reference ---------- */
+  .grid2{display:grid;gap:16px}
+  @media(min-width:680px){.grid2{grid-template-columns:1fr 1fr}}
+  .rule{font-size:.94rem;color:var(--bone);background:var(--gloom-2);border-left:2px solid var(--brass);padding:8px 12px;border-radius:0 6px 6px 0;margin:0 0 12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+  .chips li{font-family:'Space Mono',monospace;font-size:.74rem;letter-spacing:.02em;border:1px solid var(--line);
+    border-radius:20px;padding:6px 11px;color:var(--bone);background:var(--gloom-2)}
+  .trig{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+  .trig li{display:flex;gap:9px;font-size:.94rem}
+  .trig li::before{content:"\25B8";color:var(--ember);flex:none}
+  .flavor{color:var(--bone-dim);font-size:.86rem;font-style:italic;margin:10px 0 0}
+
+  /* ---------- Sealed panel ---------- */
+  .sealed{border:1px solid var(--line);border-radius:10px;margin-top:16px;overflow:hidden;background:rgba(27,24,20,.80);backdrop-filter:blur(2px)}
+  .seal-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;background:linear-gradient(180deg,var(--gloom-2),var(--gloom))}
+  .seal-bar h2{font-family:'Grenze Gotisch',serif;font-weight:700;font-size:1.35rem;margin:0}
+  .seal-bar .redact{font-family:'Space Mono',monospace;font-size:.68rem;letter-spacing:.16em;color:var(--ember)}
+  .seal-bar .redact.open{color:var(--good)}
+  .lock{padding:0 16px 18px}
+  .lock p{color:var(--bone-dim);font-size:.9rem;margin:14px 0 10px}
+  .lockform{display:flex;gap:8px;flex-wrap:wrap}
+  .lockform input{flex:1;min-width:160px;background:#0d0b09;border:1px solid var(--line);border-radius:8px;color:var(--bone);padding:11px 12px;font-family:'Space Mono',monospace;font-size:.95rem;letter-spacing:.1em}
+  .lockform input:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+  .lockform button{flex:none}
+  .denied{color:var(--ember);font-family:'Space Mono',monospace;font-size:.74rem;letter-spacing:.06em;margin-top:8px;min-height:1em}
+  .seal-body{display:none;padding:0 16px 18px}
+  .seal-body.open{display:block}
+  .cond-readout{display:flex;align-items:center;gap:14px;margin:14px 0 12px}
+  .cond-num{font-family:'Space Mono',monospace;font-weight:700;font-size:2.6rem;color:var(--ember);line-height:1}
+  .cond-meta{font-size:.9rem;color:var(--bone-dim)}
+  .cond-meta b{color:var(--bone)}
+  .cond-warn{color:var(--ember);font-family:'Space Mono',monospace;font-size:.74rem;letter-spacing:.06em;margin-top:6px;display:none}
+  .cond-warn.show{display:block;animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+  .echo-input{display:flex;gap:8px;margin:10px 0}
+  .echo-input input{flex:1;min-width:0;background:#0d0b09;border:1px solid var(--line);border-radius:8px;color:var(--bone);padding:10px 12px;font-family:'Spectral',serif;font-size:.95rem}
+  .echo-input input:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+  .echo-input button{flex:none;padding:0 14px}
+  .echoes{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}
+  .echoes li{display:flex;justify-content:space-between;gap:10px;font-style:italic;color:var(--bone);font-size:.93rem;border-left:2px solid var(--ember);padding:6px 10px;background:var(--gloom-2);border-radius:0 6px 6px 0}
+  .echoes li button{background:none;border:none;color:var(--bone-dim);min-height:auto;padding:0 4px;font-size:1rem}
+  .echoes li button:hover{color:var(--ember)}
+  .empty{color:var(--bone-dim);font-size:.9rem;font-style:italic;margin:8px 0 0}
+  .suggest{margin-top:6px}
+  .suggest .eyebrow{margin-bottom:4px;display:block}
+  .suggest button{font-family:'Spectral',serif;font-style:italic;font-weight:400;font-size:.86rem;text-align:left;color:var(--bone-dim);border-style:dashed;min-height:auto;padding:7px 10px;width:100%;margin-bottom:5px}
+  .suggest button:hover{color:var(--bone)}
+  .seal-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  .seal-tools button{flex:1;min-width:130px}
+  .reckoning{margin-top:14px;border-top:1px solid var(--line);padding-top:14px;opacity:.45}
+  .reckoning.live{opacity:1}
+  .reckoning > .eyebrow{color:var(--ember)}
+  .reck-lock{font-size:.9rem;color:var(--bone-dim);font-style:italic;margin:6px 0 0}
+  .paths{display:grid;gap:12px;margin-top:12px}
+  @media(min-width:620px){.paths{grid-template-columns:1fr 1fr}}
+  .path{border:1px solid var(--line);border-radius:8px;padding:12px 13px;background:var(--gloom-2)}
+  .path h3{font-family:'Grenze Gotisch',serif;font-weight:700;font-size:1.25rem;margin:0 0 2px}
+  .path .who{font-family:'Space Mono',monospace;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--bone-dim);margin-bottom:8px}
+  .path.asset h3{color:var(--ember)}
+  .path.unbroken h3{color:var(--iron)}
+  .path .flav{font-size:.92rem;font-style:italic;color:var(--bone);margin:0 0 8px}
+  .path .mech{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--bone);background:#0d0b09;border-radius:6px;padding:8px 10px;line-height:1.5}
+
+  /* ---------- Log ---------- */
+  .log{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-family:'Space Mono',monospace;font-size:.78rem;color:var(--bone-dim)}
+  .log li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line);padding:4px 0}
+  .log .r{color:var(--brass)}
+  .footer{margin-top:22px;text-align:center}
+  .footer .eyebrow{opacity:.6}
+  .help{margin-top:8px}
+  .help summary{font-family:'Space Mono',monospace;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--bone-dim);cursor:pointer;list-style:none;text-align:center}
+  .help summary::-webkit-details-marker{display:none}
+  .help ol{max-width:560px;margin:12px auto 0;color:var(--bone);font-size:.94rem;padding-left:20px;text-align:left}
+  .help li{margin-bottom:6px}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none!important;animation:none!important}
+    .ember{opacity:.22!important}
+  }
+</style>
+</head>
+<body>
+
+<!-- ambient background -->
+<div class="bg" aria-hidden="true">
+  <svg class="dial" viewBox="0 0 400 400" fill="none" stroke="currentColor">
+    <circle cx="200" cy="200" r="192" stroke-width="1"/>
+    <circle cx="200" cy="200" r="176" stroke-width="6" stroke-dasharray="2 22"/>
+    <circle cx="200" cy="200" r="166" stroke-width="3" stroke-dasharray="1 9"/>
+    <circle cx="200" cy="200" r="120" stroke-width="1"/>
+    <path d="M200 40 A160 160 0 0 1 360 200" stroke-width="2"/>
+    <line x1="200" y1="200" x2="200" y2="66" stroke-width="2"/>
+  </svg>
+  <svg class="dial low" viewBox="0 0 400 400" fill="none" stroke="currentColor">
+    <circle cx="200" cy="200" r="192" stroke-width="1"/>
+    <circle cx="200" cy="200" r="170" stroke-width="4" stroke-dasharray="1 12"/>
+    <circle cx="200" cy="200" r="130" stroke-width="1"/>
+  </svg>
+  <span class="ember" style="left:11%;top:28%;animation-duration:7s;animation-delay:.2s"></span>
+  <span class="ember" style="left:26%;top:64%;animation-duration:9s;animation-delay:1.4s"></span>
+  <span class="ember" style="left:47%;top:20%;animation-duration:6s;animation-delay:.8s"></span>
+  <span class="ember" style="left:63%;top:72%;animation-duration:8.5s;animation-delay:2s"></span>
+  <span class="ember" style="left:82%;top:34%;animation-duration:7.5s;animation-delay:.5s"></span>
+  <span class="ember" style="left:93%;top:60%;animation-duration:10s;animation-delay:1.1s"></span>
+  <div class="grain"></div>
+  <div class="vignette"></div>
+</div>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="dossier">
+    <div class="filecode">
+      <span class="eyebrow">Subject File · No. 0</span>
+      <span class="eyebrow">The Great Experiment</span>
+    </div>
+    <h1 class="title">MORRBARK</h1>
+    <p class="subline">Their file on me. I keep it now &mdash; my own log of how much I still hold.</p>
+  </div>
+
+  <!-- GAUGE -->
+  <div class="card">
+    <div class="readout">
+      <div class="num" id="num">5<small>/10</small></div>
+      <div class="tierbox">
+        <span class="eyebrow">Containment level</span>
+        <div class="tiername" id="tiername">Controlled</div>
+        <div class="tiertag" id="tiertag">The seam holds.</div>
+      </div>
+    </div>
+    <div class="track" id="track">
+      <div class="fill" id="fill"></div>
+      <div class="divider" style="left:25%"></div>
+      <div class="divider" style="left:45%"></div>
+      <div class="divider" style="left:55%"></div>
+      <div class="divider" style="left:75%"></div>
+      <div class="knob" id="knob"></div>
+    </div>
+    <div class="bands">
+      <span class="b0">Broken Seal</span>
+      <span class="b1">Fraying</span>
+      <span class="b2">Ctrl</span>
+      <span class="b3">Restrained</span>
+      <span class="b4">Iron</span>
+    </div>
+  </div>
+
+  <!-- CURRENT EFFECTS -->
+  <div class="card">
+    <h2>What I carry right now</h2>
+    <p class="hint">What this level grants and costs me &mdash; live. Tags mark where each one lands.</p>
+    <div class="fx-tag" id="fxtag">&#9670; Current state</div>
+    <ul class="fx" id="fx"></ul>
+  </div>
+
+  <!-- ADJUST -->
+  <div class="card">
+    <h2>Adjust</h2>
+    <p class="hint">Tap the outcome &mdash; failures left, successes right. My control holds between sessions.</p>
+    <div class="dc">
+      <div>
+        <span class="lbl">Grounding check</span>
+        <small>10 unbroken min · Constitution (or Wisdom, if I ground by stillness)</small>
+      </div>
+      <div style="text-align:right">
+        <span class="lbl">Beat</span>
+        <span class="val" id="dc">DC 15</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-down btn-lbl" data-delta="-2">Crit fail<small>&minus;2</small></button>
+      <button class="btn-down btn-lbl" data-delta="-1">Failure<small>&minus;1</small></button>
+      <button class="btn-up btn-lbl" data-delta="1">Success<small>+1</small></button>
+      <button class="btn-up btn-lbl" data-delta="2">Crit success<small>+2</small></button>
+    </div>
+  </div>
+
+  <!-- REFERENCE -->
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <h2>Grounding rituals</h2>
+        <p class="rule">I spend 10 unbroken minutes on one, then make a Constitution check against the DC above. Success raises my control by 1, failure drops it by 1, a natural 20 or 1 shifts it by 2.</p>
+        <ul class="chips">
+          <li>Exhaust the body</li><li>Endure pain</li><li>Break something apart</li>
+          <li>Drill until it's rote</li><li>Go completely still</li><li>Haul something heavy</li>
+          <li>Stand against the elements</li><li>Bleed off the pressure</li>
+        </ul>
+        <p class="flavor">These are just examples &mdash; flavor the scene at the table however it fits the moment.</p>
+      </div>
+      <div>
+        <h2>What sets me off</h2>
+        <p class="rule">When something triggers me, I make a Wisdom save or lose a level of control.</p>
+        <ul class="trig">
+          <li>Someone I trust falls beside me.</li>
+          <li>My kin, my home, or my name gets mocked or threatened.</li>
+          <li>I'm forced to move or act against my own will.</li>
+          <li>Something drags me back to the table I was made on.</li>
+          <li>A word, a sound, or a mark reaches something buried in me.</li>
+          <li>I'm caged, cornered, pinned, or held down.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEALED PANEL -->
+  <div class="sealed">
+    <div class="seal-bar">
+      <h2>Conditioning</h2>
+      <span class="redact" id="redact">&#9619;&#9619;&#9619; SEALED</span>
+    </div>
+    <div class="lock" id="lock">
+      <p>Sealed. Speak the word to open the hidden track.</p>
+      <div class="lockform">
+        <input type="password" id="sealWord" placeholder="the word" autocomplete="off" spellcheck="false">
+        <button id="sealOpen">Break the seal</button>
+      </div>
+      <div class="denied" id="denied"></div>
+    </div>
+    <div class="seal-body" id="sealBody">
+      <p class="hint" style="margin-top:14px">The hidden track. Kept sealed until the payoff.</p>
+      <div class="cond-readout">
+        <div class="cond-num" id="condNum">0</div>
+        <div class="cond-meta">
+          <div>Conditioning · <b id="condOf">0 / 6</b> to the Reckoning</div>
+          <div class="stepper" style="margin-top:6px">
+            <button class="ghost" id="condDown">&minus;</button>
+            <button class="ghost" id="condUp">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="cond-warn" id="condWarn">&#9650; Control has shattered &mdash; deepen conditioning by 1.</div>
+      <div style="margin-top:14px">
+        <p class="hint" style="margin:4px 0 0">Everything that took you back to the moment of experimentation.</p>
+        <div class="echo-input">
+          <input type="text" id="echoInput" placeholder="e.g. your fists tighten before you realize you weren't angry" maxlength="140">
+          <button id="echoAdd">Log</button>
+        </div>
+        <div class="suggest" id="suggest"><span class="eyebrow">Suggestions</span></div>
+        <ul class="echoes" id="echoes"></ul>
+      </div>
+      <div class="reckoning" id="reckoning">
+        <span class="eyebrow">The Reckoning</span>
+        <p class="reck-lock" id="reckLock">Sealed until conditioning reaches the threshold. Then he chooses what he becomes.</p>
+        <div class="paths" id="paths" style="display:none">
+          <div class="path asset">
+            <h3>Rage Incarnate</h3>
+            <div class="who">I give in</div>
+            <p class="flav">The experiment wins. The one made on that operating table is all which remains. I am not Morrbark. I am the shape of rage, and there's no man left underneath to talk down.</p>
+            <div class="mech">Rage is permanently active: +20 rage damage, +1 extra attack, immune to being charmed or frightened, and the first time each turn I drop an enemy to 0 HP I can move up to half my speed and make one melee attack. This replaces the Broken Seal penalties, but my control locks at 0, I can never ground again, and those who knew me feel they're speaking to a monster. There is no way back.</div>
+          </div>
+          <div class="path unbroken">
+            <h3>Iron Will</h3>
+            <div class="who">I seal it away</div>
+            <p class="flav">I forge a will that nothing reaches, and the conditioning dies in me. I command the fury &mdash; it never again commands me.</p>
+            <div class="mech">Can no longer rage: resistance to all damage types, as long as you have at least 1hp regenerate 5hp at the start of your turns, advantage on all attack rolls made using Strength. My control locks at Iron Discipline and can't fall below it; I keep its benefits. Once per day I can dig deep within me to unleash my rage on purpose: become Rage Incarnate for 1 round before reining it back in.</div>
+          </div>
+        </div>
+      </div>
+      <div class="seal-tools">
+        <button class="ghost" id="sealChange">Change the word</button>
+        <button class="ghost" id="sealLock">Reseal now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="card">
+    <h2>Recent shifts</h2>
+    <ul class="log" id="log"></ul>
+  </div>
+
+  <div class="footer">
+    <span class="eyebrow">Containment holds only as long as I tend it</span>
+    <details class="help">
+      <summary>How this works</summary>
+      <ol>
+        <li><b>Grounding raises my control.</b> A 10-minute ritual &rarr; Constitution check vs the shown DC. +1 on a hit, &minus;1 on a miss, &plusmn;2 on a nat 20 or 1. Once per rest is a clean default.</li>
+        <li><b>Triggers lower it.</b> When something sets me off, I make a Wisdom save or the number drops. My tier tilts those saves.</li>
+        <li><b>The tier changes my rage itself</b> &mdash; shown live above, tagged for where it lands: in a fight, out of combat, or as pure roleplay texture (no dice). It persists between sessions.</li>
+        <li><b>The sealed panel</b> is the DM's &mdash; the word keeps the conditioning arc out of sight until it's time. Default word: <span class="mono">elderwood</span>. Change it inside.</li>
+      </ol>
+      <p style="text-align:center;margin-top:14px"><button class="ghost" id="reset">Reset control to 5</button> <button class="ghost" id="wipe">Wipe all data</button></p>
+    </details>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var store = (function(){
+    try{ var k="__mb_test__"; window.localStorage.setItem(k,k); window.localStorage.removeItem(k); return window.localStorage; }
+    catch(e){ var m={}; return { getItem:function(k){return (k in m)?m[k]:null;}, setItem:function(k,v){m[k]=String(v);}, removeItem:function(k){delete m[k];} }; }
+  })();
+
+  var KEY="morrbark_restraint_v3";
+  var SEAL_KEY="morrbark_seal_hash";
+  var RECKON_THRESHOLD = 6;
+  var DEFAULT_SEAL_HASH = 2561000266; /* djb2 of "elderwood" — soft spoiler lock, not encryption */
+
+  function hashWord(s){ var h=5381; for(var i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))>>>0; } return h>>>0; }
+  function normWord(s){ return (s||"").trim().toLowerCase(); }
+  function sealHash(){ var v=store.getItem(SEAL_KEY); return v!==null ? (parseInt(v,10)>>>0) : DEFAULT_SEAL_HASH; }
+
+  /* ---- tier config: edit numbers/text/tags here to rebalance ----
+     cat  : combat | downtime | roleplay | flat  (where it lands; roleplay = pure flavor, no mechanics)
+     tone : up | down | mixed | flat             (net helpful / harmful; flat = neutral, colors the edge) */
+  var TIERS=[
+    { min:0,max:1,name:"Broken Seal",tag:"The experiment has the wheel.",fx:[
+      {cat:"combat",tone:"mixed",b:"Unleashed",p:"+Proficiency bonus * 2 rage damage, but I fight with no guard: attack rolls against me have advantage, and each time I drop a creature I have to move to and make a melee attack against the nearest thing I can reach \u2014 friend or foe."},
+      {cat:"downtime",tone:"down",b:"All edges",p:"+2 to Athletics and advantage on Intimidation, but disadvantage on any check to persuade, deceive, read a room, or do fine, careful work. My hands and my temper won't settle."},
+      {cat:"roleplay",tone:"flat",b:"Teeth bared",p:"My jaw aches from clenching. Small sounds turn my head like they're prey. When someone speaks softly to me I have to fight the urge to yell back."}
+    ]},
+    { min:2,max:3,name:"Fraying",tag:"Running hot.",fx:[
+      {cat:"combat",tone:"mixed",b:"Uncareful fury",p:"+Proficiency bonus rage damage, but I'm not covering up \u2014 I'm just swinging. The first hit against me each round deals +2 pure damage to me."},
+      {cat:"downtime",tone:"down",b:"On edge",p:"Advantage on Intimidation, disadvantage on Persuasion. The threat in me shows even when I don't mean it to, and people feel it."},
+      {cat:"roleplay",tone:"flat",b:"Short fuse",p:"I'm short with everyone and I hate that I am. My leg won't stop bouncing. I keep bracing for a fight that hasn't started."}
+    ]},
+    { min:4,max:6,name:"Controlled",tag:"The seam holds.",fx:[
+      {cat:"flat",tone:"flat",b:"Level",p:"Rage works normally \u2014 no bonus, no cost. This is where I'm meant to sit."},
+      {cat:"roleplay",tone:"flat",b:"Borrowed calm",p:"I feel like myself again. The steadiness is almost strange."}
+    ]},
+    { min:7,max:8,name:"Restrained",tag:"Disciplined.",fx:[
+      {cat:"combat",tone:"up",b:"Guarded fury",p:"I'm controlled enough to cover others: Once per short rest, when a creature I can see hits an ally within 5 feet of me, I can use my reaction to make one melee weapon attack against it."},
+      {cat:"downtime",tone:"up",b:"Steady",p:"+Rage bonus on ability checks that require patience or focus."},
+      {cat:"roleplay",tone:"flat",b:"Quiet under the ribs",p:"There's stillness in me I'd almost forgotten. I'm far more calm now. I see the fear on a face, I hear the shake in a voice \u2014 and I breathe before I answer."}
+    ]},
+    { min:9,max:10,name:"Iron Discipline",tag:"The chains are mine.",fx:[
+      {cat:"combat",tone:"up",b:"Unbending",p:"Advantage on saves against the charmed and frightened condition. Once per short rest, if I fail one of those saves, I can choose to succeed instead."},
+      {cat:"downtime",tone:"up",b:"Commanding",p:"Advantage on checks that require patience or focus."},
+      {cat:"roleplay",tone:"flat",b:"It waits on me",p:"The fury is still there. But for once it feels like mine. I could set it down. I could pick it up. Either way, it waits on me."}
+    ]}
+  ];
+
+  var CAT_LABEL={combat:"In combat",downtime:"Out of combat",roleplay:"Roleplay",flat:"Baseline"};
+
+  var SUGGESTIONS=[
+    "Your fists tighten before you realize you weren't angry.",
+    "You recognize a symbol you've never seen before.",
+    "A word makes your heart race, and you don't know why.",
+    "For a moment you're counting down from ten without meaning to."
+  ];
+
+  var state = load();
+  function load(){
+    try{ var raw=store.getItem(KEY);
+      if(raw){ var o=JSON.parse(raw);
+        return { restraint:clamp(o.restraint), conditioning:Math.max(0,o.conditioning|0),
+                 echoes:Array.isArray(o.echoes)?o.echoes:[], log:Array.isArray(o.log)?o.log:[] }; }
+    }catch(e){}
+    return { restraint:5, conditioning:0, echoes:[], log:[] };
+  }
+  function save(){ try{ store.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+  function clamp(n){ n=parseInt(n,10); if(isNaN(n))n=5; return Math.max(0,Math.min(10,n)); }
+
+  /* ---- state color: ember(low) -> brass(mid) -> iron(high), returned as rgb ---- */
+  function hexRgb(h){h=h.replace('#','');return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)];}
+  function rgbHex(c){return '#'+c.map(function(x){var s=Math.round(x).toString(16);return s.length<2?'0'+s:s;}).join('');}
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function stateRgb(v){
+    var ember=hexRgb('#c6482b'),brass=hexRgb('#b8894b'),iron=hexRgb('#8a97a0'),c;
+    if(v<=5){var t=v/5;c=ember.map(function(e,i){return lerp(e,brass[i],t);});}
+    else{var t2=(v-5)/5;c=brass.map(function(e,i){return lerp(e,iron[i],t2);});}
+    return c.map(Math.round);
+  }
+  function tierFor(v){ for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].min && v<=TIERS[i].max) return TIERS[i]; } return TIERS[2]; }
+
+  var $=function(id){return document.getElementById(id);};
+  var root=document.documentElement.style;
+  var elNum=$("num"),elTierName=$("tiername"),elTierTag=$("tiertag"),elFill=$("fill"),elKnob=$("knob"),
+      elFx=$("fx"),elDc=$("dc"),elLog=$("log"),
+      elCondNum=$("condNum"),elCondOf=$("condOf"),elCondWarn=$("condWarn"),
+      elEchoes=$("echoes"),elReckoning=$("reckoning"),elReckLock=$("reckLock"),elPaths=$("paths");
+
+  function render(){
+    var v=state.restraint, rgb=stateRgb(v), tier=tierFor(v), pct=(v/10*100);
+    var r=rgb[0],g=rgb[1],b=rgb[2], hex=rgbHex(rgb);
+    root.setProperty('--state', hex);
+    root.setProperty('--state-dark', rgbHex(rgb.map(function(c){return c*0.42;})));
+    root.setProperty('--state-soft', 'rgba('+r+','+g+','+b+',0.55)');
+    root.setProperty('--glow-top', 'rgba('+r+','+g+','+b+',0.30)');
+    root.setProperty('--glow-bot', 'rgba('+r+','+g+','+b+',0.14)');
+
+    elNum.innerHTML = v + '<small>/10</small>';
+    elTierName.textContent = tier.name;
+    elTierTag.textContent = tier.tag;
+    elFill.style.width = pct + '%';
+    elKnob.style.left = pct + '%';
+    elDc.textContent = 'DC ' + (10 + v);
+
+    elFx.innerHTML='';
+    tier.fx.forEach(function(f){
+      var li=document.createElement('li'); li.className=f.tone;
+      var row=document.createElement('div'); row.className='row1';
+      var chip=document.createElement('span'); chip.className='cat '+f.cat; chip.textContent=CAT_LABEL[f.cat];
+      var name=document.createElement('b'); name.textContent=f.b;
+      row.appendChild(chip); row.appendChild(name);
+      var p=document.createElement('p'); p.textContent=f.p;
+      li.appendChild(row); li.appendChild(p); elFx.appendChild(li);
+    });
+
+    elCondNum.textContent = state.conditioning;
+    elCondOf.textContent = state.conditioning + ' / ' + RECKON_THRESHOLD;
+    elCondWarn.classList.toggle('show', v===0);
+    var unlocked = state.conditioning >= RECKON_THRESHOLD;
+    elReckoning.classList.toggle('live', unlocked);
+    elReckLock.style.display = unlocked ? 'none' : 'block';
+    elPaths.style.display = unlocked ? 'grid' : 'none';
+
+    renderEchoes(); renderLog(); save();
+  }
+
+  function renderEchoes(){
+    elEchoes.innerHTML='';
+    if(!state.echoes.length){ var p=document.createElement('p'); p.className='empty'; p.textContent='No echoes planted yet.'; elEchoes.appendChild(p); return; }
+    state.echoes.forEach(function(txt,idx){
+      var li=document.createElement('li');
+      var span=document.createElement('span'); span.textContent='\u201c'+txt+'\u201d';
+      var x=document.createElement('button'); x.type='button'; x.setAttribute('aria-label','Remove echo'); x.textContent='\u00d7';
+      x.onclick=function(){ state.echoes.splice(idx,1); render(); };
+      li.appendChild(span); li.appendChild(x); elEchoes.appendChild(li);
+    });
+  }
+  function renderLog(){
+    elLog.innerHTML='';
+    if(!state.log.length){ var li=document.createElement('li'); li.innerHTML='<span>No shifts logged yet.</span>'; elLog.appendChild(li); return; }
+    state.log.slice(0,8).forEach(function(e){
+      var li=document.createElement('li');
+      var a=document.createElement('span'); a.innerHTML=e.note;
+      var b=document.createElement('span'); b.className='r'; b.textContent=e.arrow+' \u2192 '+e.result;
+      li.appendChild(a); li.appendChild(b); elLog.appendChild(li);
+    });
+  }
+  function adjust(delta, note){
+    var before=state.restraint; state.restraint=clamp(state.restraint+delta);
+    var real=state.restraint-before;
+    if(real===0 && delta!==0){ note=note+' (already at edge)'; }
+    var arrow = real>0 ? '+'+real : (real<0 ? String(real) : '\u00b10');
+    state.log.unshift({note:note, arrow:arrow, result:state.restraint});
+    if(state.log.length>30) state.log.length=30;
+    render();
+  }
+
+  (function(){ var box=$("suggest");
+    SUGGESTIONS.forEach(function(s){ var b=document.createElement('button'); b.type='button'; b.textContent='\u201c'+s+'\u201d';
+      b.onclick=function(){ state.echoes.unshift(s); render(); }; box.appendChild(b); });
+  })();
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-delta]'), function(btn){
+    if(btn.id==='condUp'||btn.id==='condDown') return;
+    btn.addEventListener('click', function(){
+      var d=parseInt(btn.getAttribute('data-delta'),10);
+      var note=btn.getAttribute('data-note');
+      if(!note){ note = (d>0?'Grounding success':'Grounding failure'); if(Math.abs(d)===2) note = d>0?'Grounding &mdash; crit success':'Grounding &mdash; crit fail'; }
+      adjust(d, note);
+    });
+  });
+
+  $("echoAdd").addEventListener('click', function(){ var inp=$("echoInput"); var v=(inp.value||'').trim(); if(v){ state.echoes.unshift(v); inp.value=''; render(); } });
+  $("echoInput").addEventListener('keydown', function(e){ if(e.key==='Enter'){ $("echoAdd").click(); }});
+  $("condUp").addEventListener('click', function(){ state.conditioning++; render(); });
+  $("condDown").addEventListener('click', function(){ state.conditioning=Math.max(0,state.conditioning-1); render(); });
+
+  /* ---- seal: inline password gate (no browser popups) ---- */
+  var elLock=$("lock"), elSealBody=$("sealBody"), elRedact=$("redact"), elDenied=$("denied"), elSealWord=$("sealWord");
+  function openSeal(){ elLock.style.display='none'; elSealBody.classList.add('open'); elRedact.classList.add('open'); elRedact.textContent='\u25b6 OPEN'; }
+  function closeSeal(){ elSealBody.classList.remove('open'); elLock.style.display='block'; elRedact.classList.remove('open'); elRedact.textContent='\u2593\u2593\u2593 SEALED'; elSealWord.value=''; elDenied.textContent=''; }
+  function tryOpen(){ var w=normWord(elSealWord.value); if(w && hashWord(w)===sealHash()){ openSeal(); } else { elDenied.textContent='The seal holds. Wrong word.'; elSealWord.select(); } }
+  $("sealOpen").addEventListener('click', tryOpen);
+  elSealWord.addEventListener('keydown', function(e){ if(e.key==='Enter'){ tryOpen(); }});
+  $("sealLock").addEventListener('click', closeSeal);
+  $("sealChange").addEventListener('click', function(){
+    var box=this.parentNode; if(box.querySelector('.changeform')) return;
+    var form=document.createElement('div'); form.className='changeform';
+    form.style.cssText='flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;margin-top:6px';
+    form.innerHTML='<input type="password" placeholder="new word" autocomplete="off" spellcheck="false" style="flex:1;min-width:150px;background:#0d0b09;border:1px solid var(--line);border-radius:8px;color:var(--bone);padding:10px 12px;font-family:Space Mono,monospace;letter-spacing:.1em"><button class="ghost" type="button">Save word</button>';
+    box.appendChild(form);
+    var input=form.querySelector('input'), saveBtn=form.querySelector('button');
+    function commit(){ var nw=normWord(input.value); if(!nw){ input.focus(); return; } store.setItem(SEAL_KEY, String(hashWord(nw))); saveBtn.textContent='Saved'; setTimeout(function(){ form.remove(); }, 900); }
+    saveBtn.addEventListener('click', commit);
+    input.addEventListener('keydown', function(e){ if(e.key==='Enter'){ commit(); }});
+    input.focus();
+  });
+
+  $("reset").addEventListener('click', function(){ adjust(5-state.restraint, 'Reset to 5'); });
+  (function(){ var btn=$("wipe"), armed=false, t=null;
+    btn.addEventListener('click', function(){
+      if(!armed){ armed=true; btn.textContent='Tap again to wipe'; t=setTimeout(function(){armed=false;btn.textContent='Wipe all data';},2500); return; }
+      clearTimeout(t); armed=false; btn.textContent='Wipe all data';
+      state={ restraint:5, conditioning:0, echoes:[], log:[] };
+      try{ store.removeItem(SEAL_KEY); }catch(e){}
+      closeSeal(); render();
+    });
+  })();
+
+  render();
+})();
+</script>
+</body>
+</html>
